@@ -38,3 +38,17 @@ function bypass_mrkdwn(text) {
 		.replace(/</g, "&lt;") // less than (<)
 		.replace(/>/g, "&gt;"); // greater than (>)
 }
+
+/* truncate email body to max length & append an ellipsis */
+function truncate_email(body, max_length) {
+	if (!body) return "_(no body content)_"; // if... no body
+
+	const cleaned = body.replace(/\r\n/g, "\n").trim();
+	if (cleaned.length <= max_length) return bypass_mrkdwn(cleaned); // if... body <= max length
+
+	const truncated = cleaned.substring(0, max_length);
+	const last_space = truncated.lastIndexOf(" ");
+	const clean = last_space > 0 ? truncated.substring(0, last_space) : truncated;
+
+	return `${bypass_mrkdwn(clean)}...`;
+}
