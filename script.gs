@@ -1,13 +1,12 @@
 /*
- * PROJECT: slack-email-app
- * FILE:    app-script.gs
+ * PROJECT: slack-gmail-app
+ * FILE:    script.gs
  * AUTHOR:  Ishan Kunam
  * ------------------------
  * ------------------------
  * forward email w/ defined label to Slack channel w/ configured webhook
  * & format message as rich text
  */
-/** biome-ignore-all lint/correctness/noUnusedVariables: still in dev */
 
 /*
  * ------------------------
@@ -15,8 +14,8 @@
  * ------------------------
  */
 const WEBHOOK_URL = "";
-const GMAIL_LABEL = "";
-const SLACK_CHANNEL = "";
+const LABEL = ""; // name of Gmail label
+const CHANNEL = ""; // name of Slack channel
 const BODY_LENGTH = undefined; // character limit for Slack message
 
 /*
@@ -50,10 +49,10 @@ function bypass_mrkdwn(text) {
  * truncate email body to max length & append an ellipsis
  */
 function truncate_email(body, max_length) {
-	if (!body) return "_(no body content)_"; // if... no body
+	if (!body) return "_(no body content)_";
 
 	const cleaned = body.replace(/\r\n/g, "\n").trim();
-	if (cleaned.length <= max_length) return bypass_mrkdwn(cleaned); // if... body <= max length
+	if (cleaned.length <= max_length) return bypass_mrkdwn(cleaned);
 
 	const truncated = cleaned.substring(0, max_length);
 	const last_space = truncated.lastIndexOf(" ");
@@ -87,7 +86,7 @@ function define_JSON(email) {
 	fields.push({ type: "mrkdwn", text: `*Date:*\n${date}` });
 
 	// assemble the blocks in their expected order
-	const block = [
+	const blocks = [
 		{
 			type: "section", // Subject
 			text: {
@@ -111,7 +110,7 @@ function define_JSON(email) {
 
 	// details for final payload
 	return {
-		channel: SLACK_CHANNEL,
+		channel: CHANNEL,
 		unfurl_links: false,
 		text: subject, // fallback text for notifications
 		blocks: blocks,
@@ -149,4 +148,35 @@ function build_payload(email) {
  * main function
  * -------------
  */
-function main() {} // main()
+
+// biome-ignore lint/correctness/noUnusedVariables: runs are triggered by Apps Script
+function main() {
+	const label = GmailApp.getUserLabelByName(LABEL);
+
+	if (!label) {
+		Logger.log(`Label "${LABEL}" not found. Check the Gmail filter setup.`);
+		return;
+	} // if... label not found
+
+	// loop through unread messages in each labeled thread, post to Slack, and mark as read
+	const threads = label.getThreads(); // get all threads w/ given label
+
+	let processed_count = 0; // count processed emails
+
+	threads.forEach((thread) => {
+		thread.getMessages().forEach((email) => {
+			if (!email.isUnread()) return;
+
+			try {
+				build_payload(email);
+				email.markRead();
+				processed_count++;
+			} catch (error) {
+				Logger.log(`Failed to post message "${email.getSubject()}": ${error}`);
+			}
+		});
+	});
+
+	// send number of processed emails to Apps Script execution log
+	Logger.log(`Processed ${processed_count} new email(s).`);
+} // main()
