@@ -14,7 +14,7 @@ const WEBHOOK_URL =
 	"https://hooks.slack.com/services/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";
 const GMAIL_LABEL = "[ Weiser ]";
 const SLACK_CHANNEL = "#logs-email";
-const BODY_PREVIEW_CHARS = 400; // character limit for Slack message
+const BODY_LENGTH = 400; // character limit for Slack message
 
 /*
  * ----------------
@@ -37,7 +37,7 @@ function bypass_mrkdwn(text) {
 		.replace(/&/g, "&amp;") // ampersand (&)
 		.replace(/</g, "&lt;") // less than (<)
 		.replace(/>/g, "&gt;"); // greater than (>)
-}
+} // bypass_mrkdwn()
 
 /* truncate email body to max length & append an ellipsis */
 function truncate_email(body, max_length) {
@@ -51,4 +51,64 @@ function truncate_email(body, max_length) {
 	const clean = last_space > 0 ? truncated.substring(0, last_space) : truncated;
 
 	return `${bypass_mrkdwn(clean)}...`;
-}
+} // truncate_email()
+
+/* define JSON for Slack Block Kit */
+function define_JSON(message) {
+	// call Gmail getter functions
+	const subject = message.getSubject() || "(no subject)";
+	const from = message.getFrom() || "—";
+	const to = message.getTo() || "—";
+	const cc = message.getCc() || "";
+
+	// call our helper functions
+	const date = format_date(message.getDate());
+	const body = truncate_email(message.getPlainBody(), BODY_LENGTH);
+
+	// build Block Kit field grid
+	const fields = [
+		{ type: "mrkdwn", text: `*From:*\n${escapeMrkdwn(from)}` },
+		{ type: "mrkdwn", text: `*To:*\n${escapeMrkdwn(to)}` },
+	];
+	if (cc) {
+		fields.push({ type: "mrkdwn", text: `*CC:*\n${escapeMrkdwn(cc)}` });
+	} // if... there is a CC recipient
+	fields.push({ type: "mrkdwn", text: `*Date:*\n${date}` });
+
+	// assemble the blocks in their expected order
+	const block = [
+		{
+			type: "section", // Subject
+			text: {
+				type: "mrkdwn",
+				text: `*${escapeMrkdwn(subject)}*`,
+			},
+		},
+		{
+			type: "section", // From, To, CC, Date
+			fields: fields,
+		},
+		{ type: "divider" }, // ---
+		{
+			type: "section", // Body
+			text: {
+				type: "mrkdwn",
+				text: body,
+			},
+		},
+	];
+
+	return {
+		channel: SLACK_CHANNEL,
+		unfurl_links: false,
+		text: subject, // fallback text for notifications
+		blocks: blocks,
+	};
+} // define_JSON()
+
+/*
+ * -------------
+ * main function
+ * -------------
+ */
+function main() {} // main()
