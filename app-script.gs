@@ -98,6 +98,7 @@ function define_JSON(message) {
 		},
 	];
 
+	// details for final payload
 	return {
 		channel: SLACK_CHANNEL,
 		unfurl_links: false,
