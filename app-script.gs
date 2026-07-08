@@ -4,17 +4,16 @@
  * AUTHOR:  Ishan Kunam
  * ------------------------
  * ------------------------
- * forward new emails labeled "[ Weiser ]" to Slack (i.e., #logs-emails)
+ * forward email w/ defined label to Slack channel w/ configured webhook
  * & format message as rich text
  */
 /** biome-ignore-all lint/correctness/noUnusedVariables: still in dev */
 
-/* input webhook details */
-const WEBHOOK_URL =
-	"https://hooks.slack.com/services/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";
-const GMAIL_LABEL = "[ Weiser ]";
-const SLACK_CHANNEL = "#logs-email";
-const BODY_LENGTH = 400; // character limit for Slack message
+/* input user configuration */
+const WEBHOOK_URL = "";
+const GMAIL_LABEL = "";
+const SLACK_CHANNEL = "";
+const BODY_LENGTH = undefined; // character limit for Slack message
 
 /*
  * ----------------
@@ -22,7 +21,9 @@ const BODY_LENGTH = 400; // character limit for Slack message
  * ----------------
  */
 
-/* format date object as "MONTH DAY, YEAR | TIME" (e.g., July 6, 2026 | 4:00 PM) */
+/*
+ * format date object as "MONTH DAY, YEAR | TIME" (e.g., July 6, 2026 | 4:00 PM)
+ */
 function format_date(date) {
 	return Utilities.formatDate(
 		date,
@@ -31,7 +32,9 @@ function format_date(date) {
 	);
 } // format_date()
 
-/* ensure special characters in an email bypass Slack's mrkdwn formatting syntax */
+/*
+ * ensure special characters in an email bypass Slack's mrkdwn formatting syntax
+ */
 function bypass_mrkdwn(text) {
 	return text
 		.replace(/&/g, "&amp;") // ampersand (&)
@@ -39,7 +42,9 @@ function bypass_mrkdwn(text) {
 		.replace(/>/g, "&gt;"); // greater than (>)
 } // bypass_mrkdwn()
 
-/* truncate email body to max length & append an ellipsis */
+/*
+ * truncate email body to max length & append an ellipsis
+ */
 function truncate_email(body, max_length) {
 	if (!body) return "_(no body content)_"; // if... no body
 
@@ -53,17 +58,19 @@ function truncate_email(body, max_length) {
 	return `${bypass_mrkdwn(clean)}...`;
 } // truncate_email()
 
-/* define JSON for Slack Block Kit */
-function define_JSON(message) {
+/*
+ * define JSON for Slack Block Kit
+ */
+function define_JSON(email) {
 	// call Gmail getter functions
-	const subject = message.getSubject() || "(no subject)";
-	const from = message.getFrom() || "—";
-	const to = message.getTo() || "—";
-	const cc = message.getCc() || "";
+	const subject = email.getSubject() || "(no subject)";
+	const from = email.getFrom() || "—";
+	const to = email.getTo() || "—";
+	const cc = email.getCc() || "";
 
 	// call our helper functions
-	const date = format_date(message.getDate());
-	const body = truncate_email(message.getPlainBody(), BODY_LENGTH);
+	const date = format_date(email.getDate());
+	const body = truncate_email(email.getPlainBody(), BODY_LENGTH);
 
 	// build Block Kit field grid
 	const fields = [
@@ -106,6 +113,32 @@ function define_JSON(message) {
 		blocks: blocks,
 	};
 } // define_JSON()
+
+/*
+ * build JSON payload & post to configured webhook
+ */
+function build_payload(email) {
+	// call helper function to build the payload
+	const payload = define_JSON(email);
+
+	// build HTTP POST request
+	const options = {
+		method: "post",
+		contentType: "applications/json",
+		payload: JSON.stringify(payload),
+		muteHttpExceptions: true,
+	};
+
+	// send POST request to Slack webhook URL
+	const response = UrlFetchApp.fetch(WEBHOOK_URL, options);
+	const response_code = response.getResponseCode();
+
+	if (response_code !== 200) {
+		throw new Error(
+			`Slack webhook returned ${response_code}: ${response.getContentText()}`,
+		);
+	} // if... payload is unsuccessful
+} // build_payload()
 
 /*
  * -------------
