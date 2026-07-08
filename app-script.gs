@@ -9,7 +9,11 @@
  */
 /** biome-ignore-all lint/correctness/noUnusedVariables: still in dev */
 
-/* input user configuration */
+/*
+ * ------------------------
+ * input user configuration
+ * ------------------------
+ */
 const WEBHOOK_URL = "";
 const GMAIL_LABEL = "";
 const SLACK_CHANNEL = "";
