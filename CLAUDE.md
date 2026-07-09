@@ -4,10 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-This repo contains two independent pieces:
+The entire application is **`script.gs`** — a standalone Google Apps Script meant to be pasted into the Apps Script editor (script.google.com) bound to a Gmail account. It is **not** executed by Bun/Node and is not covered by `tsconfig.json`. Its globals (`GmailApp`, `UrlFetchApp`, `Utilities`, `Session`, `Logger`) only exist inside the Apps Script runtime, so it can't be run or type-checked locally — the only way to exercise it is inside the Apps Script editor.
 
-1. **A Bun/TypeScript scaffold** (`index.ts`) — currently just the placeholder left by `bun init` (`console.log("Hello via Bun!")`). No dependencies, server, or frontend exist yet.
-2. **`script.gs`** — the actual application. A standalone Google Apps Script meant to be pasted into the Apps Script editor (script.google.com) bound to a Gmail account. It is **not** executed by Bun/Node, is not part of the TypeScript project, and is not covered by `tsconfig.json`. Its globals (`GmailApp`, `UrlFetchApp`, `Utilities`, `Logger`) only exist inside the Apps Script runtime, so it can't be run or type-checked locally — the only way to exercise it is inside the Apps Script editor.
+Bun/TypeScript (`package.json`, `tsconfig.json`, Biome) is set up in this repo only for tooling (formatting/linting) — there's no local Bun entry point or build; `script.gs` isn't picked up by Biome either since `.gs` isn't a recognized extension.
 
 ## What script.gs does
 
@@ -22,7 +21,6 @@ Scans a Gmail label for unread messages, formats each as a Slack Block Kit paylo
 ## Commands
 
 - `bun install` — install dependencies
-- `bun run index.ts` — run the Bun entry point (currently just the placeholder)
 - `bun run format` — `biome format --write .`
 - `bun run lint` — `biome lint --write .`
 - `bun run check` — `biome check --write .` (format + lint + organize imports in one pass)
