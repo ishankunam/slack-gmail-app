@@ -3,7 +3,6 @@
  * FILE:    script.gs
  * AUTHOR:  Ishan Kunam
  * ------------------------
- * ------------------------
  * forward email w/ defined label to Slack channel w/ configured webhook
  * & format message as rich text
  */
@@ -30,7 +29,7 @@ const BODY_LENGTH = undefined; // character limit for Slack message
 function format_date(date) {
 	return Utilities.formatDate(
 		date,
-		sessionStorage.getScriptTimeZone(),
+		Session.getScriptTimeZone(),
 		"MMMM d, yyyy | h:mm a",
 	);
 } // format_date()
@@ -52,7 +51,7 @@ function truncate_email(body, max_length) {
 	if (!body) return "_(no body content)_";
 
 	const cleaned = body.replace(/\r\n/g, "\n").trim();
-	if (cleaned.length <= max_length) return bypass_mrkdwn(cleaned);
+	if (!max_length || cleaned.length <= max_length) return bypass_mrkdwn(cleaned);
 
 	const truncated = cleaned.substring(0, max_length);
 	const last_space = truncated.lastIndexOf(" ");
@@ -77,11 +76,11 @@ function define_JSON(email) {
 
 	// build Block Kit field grid
 	const fields = [
-		{ type: "mrkdwn", text: `*From:*\n${escapeMrkdwn(from)}` },
-		{ type: "mrkdwn", text: `*To:*\n${escapeMrkdwn(to)}` },
+		{ type: "mrkdwn", text: `*From:*\n${bypass_mrkdwn(from)}` },
+		{ type: "mrkdwn", text: `*To:*\n${bypass_mrkdwn(to)}` },
 	];
 	if (cc) {
-		fields.push({ type: "mrkdwn", text: `*CC:*\n${escapeMrkdwn(cc)}` });
+		fields.push({ type: "mrkdwn", text: `*CC:*\n${bypass_mrkdwn(cc)}` });
 	} // if... there is a CC recipient
 	fields.push({ type: "mrkdwn", text: `*Date:*\n${date}` });
 
@@ -91,7 +90,7 @@ function define_JSON(email) {
 			type: "section", // Subject
 			text: {
 				type: "mrkdwn",
-				text: `*${escapeMrkdwn(subject)}*`,
+				text: `*${bypass_mrkdwn(subject)}*`,
 			},
 		},
 		{
@@ -127,7 +126,7 @@ function build_payload(email) {
 	// build HTTP POST request
 	const options = {
 		method: "post",
-		contentType: "applications/json",
+		contentType: "application/json",
 		payload: JSON.stringify(payload),
 		muteHttpExceptions: true,
 	};

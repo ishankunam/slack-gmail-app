@@ -1,6 +1,5 @@
 {
 	"name": "slack-gmail-app",
-	"module": "index.ts",
 	"type": "module",
 	"private": true,
 	"devDependencies": {
