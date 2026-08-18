@@ -1,10 +1,10 @@
 # slack-gmail-app
 
-Forwards Gmail messages under a chosen label to a Slack channel via an incoming webhook, formatted as a rich Slack Block Kit message.
+Forwards Gmail messages under chosen labels to Slack channels via incoming webhooks, formatted as rich Slack Block Kit messages.
 
 ## Setup
 
-The app itself is `script.gs`, a Google Apps Script. Paste it into a script bound to your Gmail account at [script.google.com](https://script.google.com), fill in the config constants at the top of the file (`WEBHOOK_URL`, `LABEL`, `CHANNEL`, `BODY_LENGTH`), and set up a time-driven trigger to run `main()`.
+The app itself is `script.js`, a Google Apps Script. Paste it into a script bound to your Gmail account at [script.google.com](https://script.google.com), fill in the `ROUTES` array at the top of the file — one entry per `{ label, channel, webhook }` route, so a single script can forward multiple Gmail labels to different Slack channels — plus `BODY_LENGTH`, then set up a time-driven trigger to run `main()`.
 
 ## Development
 
