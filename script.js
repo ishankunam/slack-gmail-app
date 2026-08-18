@@ -12,10 +12,15 @@
  * input user configuration
  * ------------------------
  */
-const WEBHOOK_URL = "";
-const LABEL = ""; // name of Gmail label
-const CHANNEL = ""; // name of Slack channel
-const BODY_LENGTH = undefined; // character limit for Slack message
+const ROUTES = [
+	{
+		label: "", // name of Gmail label
+		channel: "", // name of Slack channel (display only, webhook decides destination)
+		webhook: "", // route's Slack Incoming Webhook URL
+	},
+];
+
+const BODY_LENGTH = undefined; // character limit for Slack message (all routes)
 
 /*
  * ----------------
@@ -51,7 +56,8 @@ function truncate_email(body, max_length) {
 	if (!body) return "_(no body content)_";
 
 	const cleaned = body.replace(/\r\n/g, "\n").trim();
-	if (!max_length || cleaned.length <= max_length) return bypass_mrkdwn(cleaned);
+	if (!max_length || cleaned.length <= max_length)
+		return bypass_mrkdwn(cleaned);
 
 	const truncated = cleaned.substring(0, max_length);
 	const last_space = truncated.lastIndexOf(" ");
@@ -63,7 +69,7 @@ function truncate_email(body, max_length) {
 /*
  * define JSON for Slack Block Kit
  */
-function define_JSON(email) {
+function define_JSON(email, route) {
 	// call Gmail getter functions
 	const subject = email.getSubject() || "(no subject)";
 	const from = email.getFrom() || "—";
@@ -109,7 +115,7 @@ function define_JSON(email) {
 
 	// details for final payload
 	return {
-		channel: CHANNEL,
+		channel: route.channel,
 		unfurl_links: false,
 		text: subject, // fallback text for notifications
 		blocks: blocks,
@@ -119,9 +125,9 @@ function define_JSON(email) {
 /*
  * build JSON payload & post to configured webhook
  */
-function build_payload(email) {
+function build_payload(email, route) {
 	// call helper function to build the payload
-	const payload = define_JSON(email);
+	const payload = define_JSON(email, route);
 
 	// build HTTP POST request
 	const options = {
@@ -132,7 +138,7 @@ function build_payload(email) {
 	};
 
 	// send POST request to Slack webhook URL
-	const response = UrlFetchApp.fetch(WEBHOOK_URL, options);
+	const response = UrlFetchApp.fetch(route.webhook, options);
 	const response_code = response.getResponseCode();
 
 	if (response_code !== 200) {
@@ -143,6 +149,44 @@ function build_payload(email) {
 } // build_payload()
 
 /*
+ * process every unread message under a single route's label
+ */
+function process_route(route) {
+	const label = GmailApp.getUserLabelByName(route.label);
+
+	if (!label) {
+		Logger.log(
+			`Label "${route.label}" not found. Check the Gmail filter setup.`,
+		);
+		return 0;
+	} // if... label not found
+
+	// loop through unread messages in each labeled thread, post to Slack, and mark as read
+	const threads = label.getThreads(); // get all threads w/ given label
+
+	let processed_count = 0; // count processed emails for this route
+
+	threads.forEach((thread) => {
+		thread.getMessages().forEach((email) => {
+			if (!email.isUnread()) return;
+
+			try {
+				build_payload(email, route);
+				email.markRead();
+				processed_count++;
+			} catch (error) {
+				Logger.log(
+					`Failed to post message "${email.getSubject()}" for label "${route.label}": ${error}`,
+				);
+			}
+		});
+	});
+
+	// hand this route's count back to main() for the running total
+	return processed_count;
+} // process_route()
+
+/*
  * -------------
  * main function
  * -------------
@@ -150,32 +194,13 @@ function build_payload(email) {
 
 // biome-ignore lint/correctness/noUnusedVariables: runs are triggered by Apps Script
 function main() {
-	const label = GmailApp.getUserLabelByName(LABEL);
+	let total_processed = 0; // count processed emails across all routes
 
-	if (!label) {
-		Logger.log(`Label "${LABEL}" not found. Check the Gmail filter setup.`);
-		return;
-	} // if... label not found
-
-	// loop through unread messages in each labeled thread, post to Slack, and mark as read
-	const threads = label.getThreads(); // get all threads w/ given label
-
-	let processed_count = 0; // count processed emails
-
-	threads.forEach((thread) => {
-		thread.getMessages().forEach((email) => {
-			if (!email.isUnread()) return;
-
-			try {
-				build_payload(email);
-				email.markRead();
-				processed_count++;
-			} catch (error) {
-				Logger.log(`Failed to post message "${email.getSubject()}": ${error}`);
-			}
-		});
+	ROUTES.forEach((route) => {
+		total_processed += process_route(route);
 	});
 
-	// send number of processed emails to Apps Script execution log
-	Logger.log(`Processed ${processed_count} new email(s).`);
+	Logger.log(
+		`Processed ${total_processed} new email(s) across ${ROUTES.length} route(s).`,
+	);
 } // main()
